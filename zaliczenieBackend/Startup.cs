@@ -60,17 +60,16 @@ namespace zaliczenieBackend
             }
 
             app.UseHttpsRedirection();
+            
+            app.UseStaticFiles();
 
             app.UseRouting();
 
             app.UseAuthorization();
-            
-            app.UseStaticFiles();
 
-            
             app.UseHangfireDashboard();
 
-            app.UseEndpoints(endpoints => { endpoints.MapControllers(); });
+            app.UseEndpoints(endpoints => { endpoints.MapDefaultControllerRoute(); });
         }
     }
 }

@@ -75,18 +75,27 @@ namespace zaliczenieBackend.Controllers
             return list.Get();
         }
 
-        [HttpGet("/{id}")]
-        public async Task<IActionResult> GetSpecific(string fileName)
+        
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetSpecific(string id)
         {
-            if (String.IsNullOrEmpty(fileName))
+            if (String.IsNullOrEmpty(id))
                 return BadRequest();
             
-            //todo: to implement
+            GetUploadFolder getFiles = new GetUploadFolder(_environment);
+            var list = getFiles.Get();
             
             
-            
-            
-            return Ok();
+            // if fileName is equal to file in storage, return fileName to download file
+            foreach (var item in list)
+            {
+                if (id.Contains(item.FileName))
+                {
+                    return Ok(item.FileName);
+                }
+            }
+
+            return BadRequest();
         } 
     }
 }
