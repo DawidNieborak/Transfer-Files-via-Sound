@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net.Http.Json;
 using System.Threading.Tasks;
 using Hangfire;
 using Microsoft.AspNetCore.Hosting;
@@ -30,11 +31,11 @@ namespace zaliczenieBackend.Controllers
         {
             public IFormFile files { get; set; }
         }
-        
+
         [HttpPost]
         public async Task<IActionResult> UploadFile([FromForm] UplodedFile objFile)
         {
-
+            Console.WriteLine("CALLED");
             try
             {
                 await using (FileStream fileStream =
@@ -96,6 +97,6 @@ namespace zaliczenieBackend.Controllers
             }
 
             return BadRequest();
-        } 
+        }
     }
 }

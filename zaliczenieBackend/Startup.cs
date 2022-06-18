@@ -1,19 +1,16 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
+using System.Net.Mime;
+using System.Text.Json;
 using Hangfire;
 using Hangfire.MemoryStorage;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.HttpsPolicy;
-using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using Microsoft.OpenApi.Models;
-using zaliczenieBackend.Controllers;
 using zaliczenieBackend.Service;
 using BackgroundService = Microsoft.Extensions.Hosting.BackgroundService;
 
@@ -21,6 +18,7 @@ namespace zaliczenieBackend
 {
     public class Startup
     {
+        readonly string MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
@@ -33,6 +31,18 @@ namespace zaliczenieBackend
         {
             services.AddControllers();
             
+            services.AddCors(options =>
+            {
+                
+                options.AddPolicy(name: MyAllowSpecificOrigins,
+                    builder =>
+                    {
+                        builder.AllowAnyHeader()
+                            .AllowAnyMethod()
+                            .AllowAnyOrigin();
+
+                    });
+            });
             
             // Hangfire service memory storage
             services.AddHangfire(config =>
@@ -47,6 +57,7 @@ namespace zaliczenieBackend
 
             services.AddSingleton<IRecurringFileDelete, RecurringFileDelete>();
 
+            services.AddHealthChecks();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -64,12 +75,47 @@ namespace zaliczenieBackend
             app.UseStaticFiles();
 
             app.UseRouting();
+            
+            app.UseCors(MyAllowSpecificOrigins);
 
             app.UseAuthorization();
 
             app.UseHangfireDashboard();
 
-            app.UseEndpoints(endpoints => { endpoints.MapDefaultControllerRoute(); });
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapDefaultControllerRoute();
+                
+                
+                endpoints.MapHealthChecks("/health/ready", new HealthCheckOptions
+                {
+                    Predicate = (check) => check.Tags.Contains("ready"),
+                    ResponseWriter = async (context, report) =>
+                    {
+                        var result = JsonSerializer.Serialize(
+                            new
+                            {
+                                status = report.Status.ToString(),
+                                checks = report.Entries.Select(entry => new
+                                {
+                                    name = entry.Key,
+                                    status = entry.Value.Status.ToString(),
+                                    exception = entry.Value.Exception != null ? entry.Value.Exception.Message : "none",
+                                    duration = entry.Value.Duration.ToString()
+                                })
+                            }
+                        );
+                
+                        context.Response.ContentType = MediaTypeNames.Application.Json;
+                        await context.Response.WriteAsync(result);
+                    }
+                });
+                
+                endpoints.MapHealthChecks("/health/live", new HealthCheckOptions
+                {
+                    Predicate = (_) => false
+                });
+            });
         }
     }
 }
